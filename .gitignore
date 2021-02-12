@@ -1,0 +1,34 @@
+target/
+
+.settings
+.project
+.classpath
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+.metals
+.bloop
+
+# SCALA build server protocol
+.bsp/
+
+logs
+target
+/.idea
+/.idea_modules
+/.classpath
+/RUNNING_PID
+
+
+
+
+
+
+
+
+
+
+
