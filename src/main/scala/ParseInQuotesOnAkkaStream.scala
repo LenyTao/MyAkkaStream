@@ -5,6 +5,7 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration.DurationInt
 
 object ParseInQuotesOnAkkaStream extends App {
+
   implicit val system: ActorSystem = ActorSystem("QuickStart")
   implicit val dispatcher: ExecutionContextExecutor = system.dispatcher
 
