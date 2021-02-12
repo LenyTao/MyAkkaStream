@@ -6,6 +6,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object MyHomeWork_WC extends App {
+
   val flowSystem = GraphDSL.create[FlowShape[Char, Int]]() {
     implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
