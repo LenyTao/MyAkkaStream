@@ -1,61 +1,58 @@
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.{FlowShape, UniformFanInShape, UniformFanOutShape}
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, FileIO, Flow, Framing, GraphDSL, Merge, Sink}
+import akka.util.ByteString
+
+import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object MyHomeWork_WC extends App {
+  implicit val system: ActorSystem = ActorSystem("QuickStart")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 
-  val flowSystem = GraphDSL.create[FlowShape[Char, Int]]() {
+  val flowSystem = GraphDSL.create[FlowShape[ByteString, (String, Int)]]() {
     implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
-      val bcast: UniformFanOutShape[Char, Char] = builder.add(Broadcast[Char](3))
-      val merge: UniformFanInShape[Int, Int] = builder.add(Merge[Int](3))
+      val bcast: UniformFanOutShape[String, String] = builder.add(Broadcast[String](3))
+      val merge: UniformFanInShape[(String, Int), (String, Int)] = builder.add(Merge[(String, Int)](3))
 
-      val flow_CounterSymbols = Flow[Char].filterNot { s => s.toString matches ("[^a-zA-Z]") }.map(x => 1).fold(0)(_ + _)
-      val flow_CounterWords = Flow[Char].fold((None: Option[List[Char]], 0)) {
-        case ((None, result), char) if (char.isLetter) =>
-          (Some(List(char)), result)
-        case ((None, result), _) =>
-          (None, result)
-        case ((Some(symbol), result), char) if (!char.isLetter) =>
-          (None, result + 1)
-        case ((Some(symbol), result), char) =>
-          (Some(symbol.:+(char)), result)
-      }.map(x => if (x._1.isEmpty) x._2 else x._2 + 1)
+      val flow_converter = Framing.delimiter(ByteString(" "), 512, true).map(_.utf8String)
 
-      val flow_CounterLine = Flow[Char].filter(_ == '\n').map(x => 1).fold(1)(_ + _)
+      val flow_CounterLetter = Flow[String]
+        .map(s => s.replaceAll(("[^a-zA-Z]"), ""))
+        .map(x => x.length).fold(0)(_ + _)
+        .map(x => "CounterLetter" -> x)
 
-      val inputFlow = builder.add(Flow[Char])
-      val outputFlow = builder.add(Flow[Int])
+      val flow_CounterWords = Flow[String]
+        .map(x => x.replaceAll("[^a-zA-Z ]", " ").split(" ").filter(_ != ""))
+        .map(x => x.length)
+        .fold(0)(_ + _).map(x => "CounterWords" -> x)
 
-      inputFlow.out ~> bcast
-      bcast ~> flow_CounterSymbols ~> merge
+      val flow_CounterLine = Flow[String].filter(_.contains("\n"))
+        .map(x => 1)
+        .fold(1)(_ + _)
+        .map(x => ("CounterLine" -> x))
+
+      val inputFlow = builder.add(Flow[ByteString])
+      val outputFlow = builder.add(Flow[(String, Int)])
+
+      inputFlow.out ~> flow_converter ~> bcast
+      bcast ~> flow_CounterLetter ~> merge
       bcast ~> flow_CounterWords ~> merge
       bcast ~> flow_CounterLine ~> merge
       merge ~> outputFlow.in
       FlowShape(inputFlow.in, outputFlow.out)
   }
 
-  val sink: Sink[Int, Future[Seq[Int]]] = Sink.seq[Int]
-  implicit val system: ActorSystem = ActorSystem("QuickStart")
-  implicit val dispatcher: ExecutionContextExecutor = system.dispatcher
+  val source = FileIO.fromPath(Paths.get("stih.txt"))
+  val sink: Sink[(String, Int), Future[Seq[(String, Int)]]] = Sink.seq[(String, Int)]
+  val pipeline: Future[Seq[(String, Int)]] = source.via(flowSystem).runWith(sink)
 
-  val pipeline: Future[Seq[Int]] = Source(
-    """I bought my wife and daughter
-      |Multicolored stockings
-      |Points, points
-      |""".stripMargin.toCharArray
-  ).via(flowSystem).runWith(sink)
   pipeline.onComplete(_ => system.terminate())
-  val result = Await.result(pipeline, 1.second)
-  println(
-    s"""
-       |CounterWords:   ${result.head}
-       |CounterSymbols: ${result(1)}
-       |CounterLine:    ${result(2)}
-       |""".stripMargin
-  )
+
+  val result: Seq[(String, Int)] = Await.result(pipeline, 2.second)
+  println(result)
 }
 
