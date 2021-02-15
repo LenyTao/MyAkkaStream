@@ -18,7 +18,7 @@ object MyHomeWork_WC extends App {
       val bcast: UniformFanOutShape[String, String] = builder.add(Broadcast[String](3))
       val merge: UniformFanInShape[(String, Int), (String, Int)] = builder.add(Merge[(String, Int)](3))
 
-      val flow_converter = Framing.delimiter(ByteString(" "), 512, true).map(_.utf8String)
+      val flow_converter = Framing.delimiter(ByteString(" "), 50_331_648, true).map(_.utf8String)
 
       val flow_CounterLetter = Flow[String]
         .map(s => s.replaceAll(("[^a-zA-Z]"), ""))
@@ -30,8 +30,9 @@ object MyHomeWork_WC extends App {
         .map(x => x.length)
         .fold(0)(_ + _).map(x => "CounterWords" -> x)
 
-      val flow_CounterLine = Flow[String].filter(_.contains("\n"))
-        .map(x => 1)
+      val flow_CounterLine = Flow[String]
+        .map(x => x.replaceAll("[^\n]", ""))
+        .map(x => x.length)
         .fold(1)(_ + _)
         .map(x => ("CounterLine" -> x))
 
