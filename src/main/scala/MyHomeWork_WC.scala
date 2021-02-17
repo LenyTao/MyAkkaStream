@@ -32,8 +32,7 @@ object MyHomeWork_WC extends App {
 
       val flow_CounterLine = Flow[String]
         .map(x => x.toCharArray)
-        .map(x => x.filter(_ == '\n'))
-        .map(x => x.length)
+        .map(x => x.count(_=='\n'))
         .fold(1)(_ + _)
         .map(x => ("CounterLine" -> x))
 
