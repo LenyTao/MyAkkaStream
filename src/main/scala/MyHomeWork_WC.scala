@@ -31,7 +31,8 @@ object MyHomeWork_WC extends App {
         .fold(0)(_ + _).map(x => "CounterWords" -> x)
 
       val flow_CounterLine = Flow[String]
-        .map(x => x.replaceAll("[^\n]", ""))
+        .map(x => x.toCharArray)
+        .map(x => x.filter(_ == '\n'))
         .map(x => x.length)
         .fold(1)(_ + _)
         .map(x => ("CounterLine" -> x))
