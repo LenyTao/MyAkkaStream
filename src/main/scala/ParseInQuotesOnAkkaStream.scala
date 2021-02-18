@@ -20,9 +20,9 @@ object ParseInQuotesOnAkkaStream extends App {
       Flow[Char].fold((None: Option[List[Char]], List.empty[String])) {
         case ((None, result), '\"') => (Some(Nil), result)
         case ((None, result), _) => (None, result)
-        case ((Some(symbol), result), '\"') => (None, result.:+(symbol.map(x => x.toString).reduce((a, b) => a + b)))
-        case ((Some(symbol), result), char) => (Some(symbol.:+(char)), result)
-      }.map(x => x._2)
+        case ((Some(symbol), result), '\"') => (None, result.::(symbol.map(x => x.toString).reduce((a, b) => a + b)))
+        case ((Some(symbol), result), char) => (Some(symbol.::(char)), result)
+      }.map(x => x._2.map(x => x.reverse).reverse)
     ).toMat(Sink.head)(Keep.right)
 
   val result = runnable.run()
